@@ -53,7 +53,8 @@ jobs:
           brew install make dpkg ldid wget
           echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
           python3 -m pip install --upgrade --break-system-packages \
-              git+https://github.com/asdfzxcvbn/pyzule-rw.git
+              git+https://github.com/asdfzxcvbn/pyzule-rw.git \
+              gdown
           # releases/latest/download redirect avoids api.github.com rate limit (anon 60/hr -> 403)
           ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && SUFFIX=macos-amd64 || SUFFIX=macos-arm64
           sudo curl -fsSL "https://github.com/asdfzxcvbn/ipapatch/releases/latest/download/ipapatch.${SUFFIX}" \
@@ -94,9 +95,17 @@ jobs:
         env:
           IPA_URL: ${{ inputs.ipa_url }}
         run: |
-          curl --fail --location --retry 3 --retry-all-errors \
-            --user-agent "EeveeSpotifyReincarnated/1.0" \
-            --output "${{ github.workspace }}/spotify.ipa" "$IPA_URL"
+          case "$IPA_URL" in
+            *drive.google.com/*|*drive.usercontent.google.com/*)
+              gdown --fuzzy "$IPA_URL" \
+                --output "${{ github.workspace }}/spotify.ipa"
+              ;;
+            *)
+              curl --fail --location --retry 3 --retry-all-errors \
+                --user-agent "EeveeSpotifyReincarnated/1.0" \
+                --output "${{ github.workspace }}/spotify.ipa" "$IPA_URL"
+              ;;
+          esac
           file_type=$(file --mime-type -b "${{ github.workspace }}/spotify.ipa")
           if [[ "$file_type" != "application/x-ios-app" && "$file_type" != "application/zip" ]]; then
             echo "::error::Not a valid IPA: $file_type"
